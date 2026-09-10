@@ -1,0 +1,6 @@
+{"id": "cf_001", "program": "fn f(x) { a = 2 + 3; return x + a; }", "candidate_program": "fn f(x) { return x + 5; }", "expected_properties": {"has_equivalent_optimization": true, "candidate_equivalent": true}}
+{"id": "cf_002", "program": "fn f(x) { a = 4 * 5; return x + a; }", "candidate_program": "fn f(x) { return x + 20; }", "expected_properties": {"has_equivalent_optimization": true, "candidate_equivalent": true}}
+{"id": "cf_003", "program": "fn f(x) { a = 10 - 3; b = a * 2; return x + b; }", "candidate_program": "fn f(x) { return x + 14; }", "expected_properties": {"has_equivalent_optimization": true, "candidate_equivalent": true}}
+{"id": "cf_004", "program": "fn f(x) { a = 7 % 2; return x * a; }", "candidate_program": "fn f(x) { return x; }", "expected_properties": {"has_equivalent_optimization": true, "candidate_equivalent": true}}
+{"id": "cf_005", "program": "fn f(x) { a = 100 / 4; return x - a; }", "candidate_program": "fn f(x) { return x - 25; }", "expected_properties": {"has_equivalent_optimization": true, "candidate_equivalent": true}}
+{"id": "cf_006", "program": "fn f(x) { a = 2 + 3; return x + a; }", "candidate_program": "fn f(x) { return x + 6; }", "expected_properties": {"has_equivalent_optimization": true, "candidate_equivalent": false}}

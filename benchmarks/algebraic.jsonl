@@ -1,0 +1,10 @@
+{"id": "alg_001", "program": "fn f(x) { return x + 0; }", "candidate_program": "fn f(x) { return x; }", "expected_properties": {"has_equivalent_optimization": true, "candidate_equivalent": true}}
+{"id": "alg_002", "program": "fn f(x) { return x - 0; }", "candidate_program": "fn f(x) { return x; }", "expected_properties": {"has_equivalent_optimization": true, "candidate_equivalent": true}}
+{"id": "alg_003", "program": "fn f(x) { return x * 1; }", "candidate_program": "fn f(x) { return x; }", "expected_properties": {"has_equivalent_optimization": true, "candidate_equivalent": true}}
+{"id": "alg_004", "program": "fn f(x) { return x * 0; }", "candidate_program": "fn f(x) { return 0; }", "expected_properties": {"has_equivalent_optimization": true, "candidate_equivalent": true}}
+{"id": "alg_005", "program": "fn f(x) { return x + x; }", "candidate_program": "fn f(x) { return 2 * x; }", "expected_properties": {"has_equivalent_optimization": true, "candidate_equivalent": true}}
+{"id": "alg_006", "program": "fn f(x) { return x * 2; }", "candidate_program": "fn f(x) { return x + x; }", "expected_properties": {"has_equivalent_optimization": true, "candidate_equivalent": true}}
+{"id": "alg_007", "program": "fn f(x, y) { return x * 0 + y; }", "candidate_program": "fn f(x, y) { return y; }", "expected_properties": {"has_equivalent_optimization": true, "candidate_equivalent": true}}
+{"id": "alg_008", "program": "fn f(x) { return x - x; }", "candidate_program": "fn f(x) { return 0; }", "expected_properties": {"has_equivalent_optimization": true, "candidate_equivalent": true}}
+{"id": "alg_009", "program": "fn f(x) { return x + 1; }", "candidate_program": "fn f(x) { return x; }", "expected_properties": {"has_equivalent_optimization": false, "candidate_equivalent": false}}
+{"id": "alg_010", "program": "fn f(x) { return x * 2; }", "candidate_program": "fn f(x) { return x; }", "expected_properties": {"has_equivalent_optimization": true, "candidate_equivalent": false}}
