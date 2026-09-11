@@ -36,7 +36,14 @@ export default function ConfigPanel({ config, onChange, onGenerate, loading }) {
       </div>
 
       <button className="generate-btn" onClick={onGenerate} disabled={loading}>
-        {loading ? "GENERATING…" : "GENERATE OPTIMIZATIONS"}
+        {loading ? (
+          <>
+            <span className="spinner" aria-hidden="true" />
+            GENERATING…
+          </>
+        ) : (
+          "GENERATE OPTIMIZATIONS"
+        )}
       </button>
     </div>
   );

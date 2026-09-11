@@ -1,28 +1,67 @@
 import { useEffect, useState } from "react";
 import ConfigPanel from "../components/ConfigPanel";
 import CandidateCard from "../components/CandidateCard";
+import ThemeToggle from "../components/ThemeToggle";
 import { getHealth, postOptimize } from "../api/client";
 
-const DEFAULT_PROGRAM = `int compute(int x, int y) {
+const EXAMPLES = {
+  "Redundant computation": `int compute(int x, int y) {
     int t1 = x + 0;
     int t2 = t1 * 1;
     int t3 = t2 + t2;
     return t3 + y;
-}`;
+}`,
+  "Max (if/else)": `int maxi(int x, int y) {
+    if (x > y) {
+        return x;
+    } else {
+        return y;
+    }
+}`,
+  "Abs value (early return)": `int abs_val(int x) {
+    if (x < 0) {
+        return 0 - x;
+    }
+    return x;
+}`,
+  "Sign (else-if chain)": `int sign(int x) {
+    if (x > 0) {
+        return 1;
+    } else if (x < 0) {
+        return 0 - 1;
+    } else {
+        return 0;
+    }
+}`,
+  "Ternary": `int abs_val(int x) {
+    return x < 0 ? 0 - x : x;
+}`,
+};
+
+const DEFAULT_PROGRAM = EXAMPLES["Redundant computation"];
 
 export default function Dashboard() {
   const [program, setProgram] = useState(DEFAULT_PROGRAM);
+  const [exampleName, setExampleName] = useState("Redundant computation");
   const [config, setConfig] = useState({ llmBackend: "mock", ollamaModel: "qwen3:0.6b", numCandidates: 5 });
   const [report, setReport] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [health, setHealth] = useState(null);
+  const [healthError, setHealthError] = useState(false);
 
   useEffect(() => {
     getHealth()
       .then(setHealth)
-      .catch(() => setHealth(null));
+      .catch(() => setHealthError(true));
   }, []);
+
+  function handleExampleChange(name) {
+    setExampleName(name);
+    setProgram(EXAMPLES[name]);
+    setReport(null);
+    setError(null);
+  }
 
   async function handleGenerate() {
     setLoading(true);
@@ -46,38 +85,74 @@ export default function Dashboard() {
   return (
     <div className="dashboard">
       <header className="app-header">
-        <h1>AI Compiler Optimizer</h1>
-        <p className="subtitle">LLM-Generated Optimizations with Formal Equivalence Verification</p>
-        {health && (
-          <p className="health-line">
-            backend: <strong>{health.status}</strong> · llm: <strong>{health.llm_backend}</strong>
-          </p>
-        )}
+        <div className="app-header-top">
+          <div>
+            <h1>AI Compiler Optimizer</h1>
+            <p className="subtitle">LLM-Generated Optimizations with Formal Equivalence Verification</p>
+          </div>
+          <ThemeToggle />
+        </div>
+        <div className="status-line">
+          <span className={`status-dot ${healthError ? "status-dot-bad" : health ? "status-dot-ok" : ""}`} />
+          {healthError ? (
+            <span>backend unreachable</span>
+          ) : health ? (
+            <span>
+              backend <strong>{health.status}</strong> · llm <strong>{health.llm_backend}</strong>
+            </span>
+          ) : (
+            <span>connecting…</span>
+          )}
+        </div>
       </header>
 
-      <section className="panel">
-        <div className="panel-title">Original Program</div>
-        <textarea
-          className="code-editor"
-          value={program}
-          onChange={(e) => setProgram(e.target.value)}
-          spellCheck={false}
-          rows={10}
-        />
-      </section>
+      <div className="main-grid">
+        <section className="panel editor-panel">
+          <div className="panel-title-row">
+            <div className="panel-title">Original Program</div>
+            <select
+              className="example-picker"
+              value={exampleName}
+              onChange={(e) => handleExampleChange(e.target.value)}
+            >
+              {Object.keys(EXAMPLES).map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <textarea
+            className="code-editor"
+            value={program}
+            onChange={(e) => {
+              setProgram(e.target.value);
+              setExampleName("");
+            }}
+            spellCheck={false}
+            rows={12}
+          />
+        </section>
 
-      <section className="panel">
-        <div className="panel-title">Configuration</div>
-        <ConfigPanel config={config} onChange={setConfig} onGenerate={handleGenerate} loading={loading} />
-      </section>
+        <section className="panel config-panel-wrapper">
+          <div className="panel-title">Configuration</div>
+          <ConfigPanel config={config} onChange={setConfig} onGenerate={handleGenerate} loading={loading} />
+        </section>
+      </div>
 
-      {error && <div className="global-error">Error: {error}</div>}
+      {error && (
+        <div className="global-error">
+          <span className="error-icon">⚠</span> {error}
+        </div>
+      )}
 
       {report && (
-        <section className="panel">
-          <div className="panel-title">
-            Results — {report.summary.accepted}/{report.summary.total_candidates} accepted (
-            {report.summary.acceptance_rate_pct}%)
+        <section className="panel results-panel">
+          <div className="results-header">
+            <div className="panel-title">Results</div>
+            <div className={`results-badge ${report.summary.accepted > 0 ? "results-badge-ok" : "results-badge-none"}`}>
+              {report.summary.accepted}/{report.summary.total_candidates} accepted ({report.summary.acceptance_rate_pct}%)
+            </div>
           </div>
           <div className="candidate-list">
             {report.candidates.map((c) => (

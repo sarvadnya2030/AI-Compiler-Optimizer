@@ -1,17 +1,45 @@
-function InstrList({ ir }) {
-  if (!ir) return null;
+import { useState } from "react";
+
+function formatIr(ir) {
+  return ir.instructions
+    .map((i) => {
+      if (i.op === "RETURN") return `return ${i.value}`;
+      if (i.op === "CONST") return `${i.dest} = ${i.value}`;
+      if (i.op === "CMP") return `${i.dest} = cmp.${i.cmp} ${i.lhs}, ${i.rhs}`;
+      if (i.op === "SELECT") return `${i.dest} = select ${i.cond} ? ${i.then} : ${i.else}`;
+      return `${i.dest} = ${i.op.toLowerCase()} ${i.lhs}, ${i.rhs}`;
+    })
+    .join("\n");
+}
+
+function CopyButton({ text }) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    } catch {
+      // clipboard unavailable -- silently no-op
+    }
+  }
+
   return (
-    <pre className="ir-block">
-      {ir.instructions
-        .map((i) => {
-          if (i.op === "RETURN") return `return ${i.value}`;
-          if (i.op === "CONST") return `${i.dest} = ${i.value}`;
-          if (i.op === "CMP") return `${i.dest} = cmp.${i.cmp} ${i.lhs}, ${i.rhs}`;
-          if (i.op === "SELECT") return `${i.dest} = select ${i.cond} ? ${i.then} : ${i.else}`;
-          return `${i.dest} = ${i.op.toLowerCase()} ${i.lhs}, ${i.rhs}`;
-        })
-        .join("\n")}
-    </pre>
+    <button className="copy-btn" onClick={handleCopy} title="Copy IR">
+      {copied ? "copied" : "copy"}
+    </button>
+  );
+}
+
+function IrBlock({ ir }) {
+  if (!ir) return null;
+  const text = formatIr(ir);
+  return (
+    <div className="ir-block-wrapper">
+      <pre className="ir-block">{text}</pre>
+      <CopyButton text={text} />
+    </div>
   );
 }
 
@@ -32,12 +60,12 @@ export default function CandidateCard({ candidate, originalIr, index }) {
       <div className="ir-columns">
         <div>
           <div className="ir-label">Original IR</div>
-          <InstrList ir={originalIr} />
+          <IrBlock ir={originalIr} />
         </div>
         <div>
           <div className="ir-label">Optimized IR</div>
           {candidate.candidate_ir ? (
-            <InstrList ir={candidate.candidate_ir} />
+            <IrBlock ir={candidate.candidate_ir} />
           ) : (
             <pre className="ir-block error-block">{candidate.parse_error}</pre>
           )}
