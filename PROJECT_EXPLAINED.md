@@ -71,27 +71,35 @@ this one query is what turns a candidate into an accepted optimization.
 
 Formally verifying arbitrary C/C++ is not tractable for a project like
 this (pointers, aliasing, undefined behavior, fixed-width overflow, and
-loops each blow up the problem independently). So the system defines its
-own small, from-scratch language over **mathematical (unbounded)
-integers**:
+loops each blow up the problem independently). So the frontend is a
+real -- if intentionally tiny -- subset of **C syntax** over
+**mathematical (unbounded) integers**: typed declarations, and genuine
+block-structured `if`/`else` (including early returns and `else if`
+chains), not just a bare expression language:
 
-```
-fn compute(x, y) {
-    a = x * 2;
-    b = y + 0;
-    c = a + a;
-    return c + b;
+```c
+int abs_val(int x) {
+    if (x < 0) {
+        return 0 - x;
+    }
+    return x;
 }
 ```
 
-Supported: integer variables/constants, `+ - * / %`, comparisons, a
-ternary `cond ? a : b` (the only branching construct), and `return`.
-Explicitly not supported (documented, not accidental): pointers, arrays,
-structs, I/O, function calls, loops, concurrency, floating point. This
-keeps every program a straight-line sequence of instructions with no
-loops to reason about — which is exactly what lets the whole function be
-encoded as a single Z3 expression, no path explosion, no invariants to
-guess.
+Supported: `int` declarations, `+ - * / %`, comparisons, a ternary
+`cond ? a : b`, and real block `if`/`else` statements. Explicitly not
+supported (documented, not accidental): pointers, arrays, structs, I/O,
+function calls, loops, concurrency, floating point, fixed-width integer
+overflow. This keeps every program's control flow a DAG with no
+back-edges — which is exactly what lets the whole function be encoded as
+a single Z3 expression, no path explosion, no loop invariants to guess.
+
+Block `if`/`else` still lowers into the same branch-free IR (only
+`SELECT` exists, no jumps) via a technique called **tail duplication**:
+everything after an `if`/`else` gets appended onto both branches before
+lowering continues, so an early return like `abs_val` above collapses to
+one `CMP` + one `SELECT`, exactly as if it had been written with the
+ternary. See `docs/ir.md` for the full algorithm.
 
 Source compiles down through a lexer → parser → AST → into an explicit,
 SSA-style intermediate representation (IR) — every computed value gets
@@ -187,17 +195,19 @@ Candidate #3 (mutated ADD->MUL):
   hard-coded "assume equivalent" path anywhere in the code.
 - Verification time is real `time.perf_counter()` wall-clock time around
   the actual solver call, not a fabricated number.
-- The 40-program benchmark suite (`benchmarks/*.jsonl`, across
+- The 43-program benchmark suite (`benchmarks/*.jsonl`, across
   arithmetic / algebraic / constant-folding / redundant-computation /
-  control-flow categories) has each program paired with a specific
-  candidate and a `candidate_equivalent` ground-truth flag — and a test
-  (`backend/tests/test_benchmarks.py`) re-derives that flag from a live
-  Z3 call on every test run, so the suite can never silently drift out
-  of sync with what the verifier actually decides. All 40 currently
-  match.
-- 50 automated tests cover the parser, IR validation, Z3 encoding,
-  equivalence checking, the mock optimizer, the benchmark suite, and the
-  FastAPI routes — all passing.
+  control-flow categories -- the last now includes real block `if`/`else`,
+  early returns, and `else if` chains, not just ternaries) has each
+  program paired with a specific candidate and a `candidate_equivalent`
+  ground-truth flag — and a test (`backend/tests/test_benchmarks.py`)
+  re-derives that flag from a live Z3 call on every test run, so the
+  suite can never silently drift out of sync with what the verifier
+  actually decides. All 43 currently match.
+- 60 automated tests cover the parser (including mini-C's `if`/`else`,
+  `else if` chains, and declaration/type errors), IR validation, Z3
+  encoding, equivalence checking, the mock optimizer, the benchmark
+  suite, and the FastAPI routes — all passing.
 
 ## 9. The experiment framework (the "research" part)
 
@@ -205,13 +215,13 @@ Candidate #3 (mutated ADD->MUL):
 chosen generator, verifies every candidate, and writes per-candidate
 JSON/CSV records plus aggregate metrics: acceptance rate, rejection
 rate, average verification latency, average instruction reduction. A
-real run against the mock generator over all 40 benchmarks (3 candidates
-each, 120 total):
+real run against the mock generator over all 43 benchmarks (3 candidates
+each, 129 total):
 
 ```
-accepted: 82/120 (68.33%)
-avg verification latency: ~1.3ms
-avg instruction reduction (accepted only): 10.67%
+accepted: 88/129 (68.22%)
+avg verification latency: ~1.5ms
+avg instruction reduction (accepted only): 10.13%
 ```
 
 `experiments/analyze_results.py` compares multiple such runs side by
@@ -254,7 +264,7 @@ backend/app/verifier/   Z3 encoder, equivalence checker, counterexamples
 backend/app/metrics/    IR-level instruction-count metrics
 backend/app/api/        FastAPI routes wiring it all together
 frontend/src/           React dashboard (editor, config, candidate cards)
-benchmarks/*.jsonl      40 programs, ground-truth-checked against Z3
+benchmarks/*.jsonl      43 programs, ground-truth-checked against Z3
 experiments/            batch runner + cross-run comparison
 docs/                   one deep-dive file per subsystem + a full
                         learning roadmap (docs/learning_roadmap.md)

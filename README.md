@@ -2,12 +2,14 @@
 
 **LLM-Generated Optimizations with Formal Equivalence Verification**
 
-An AI-assisted compiler optimization system where an LLM (or a
-deterministic offline mock) proposes optimized versions of a program,
-and a Z3-based formal verifier independently proves — or disproves, with
-a concrete counterexample — that each candidate is semantically
-equivalent to the original. **The LLM is never trusted for correctness.**
-Only candidates Z3 proves equivalent are accepted.
+An AI-assisted compiler optimization system for a real (tiny) subset of
+C — typed declarations, block `if`/`else`, no loops/pointers/arrays —
+where an LLM (or a deterministic offline mock) proposes optimized
+versions of a program, and a Z3-based formal verifier independently
+proves — or disproves, with a concrete counterexample — that each
+candidate is semantically equivalent to the original. **The LLM is
+never trusted for correctness.** Only candidates Z3 proves equivalent
+are accepted.
 
 > Originally scoped as a compiler-design course project; built as a
 > small but genuinely working research-grade MVP rather than a slide deck.
@@ -126,7 +128,7 @@ UI's LLM dropdown.
 ./scripts/run_tests.sh
 ```
 
-47+ tests across parser, IR, Z3 encoding, equivalence checking, the
+60+ tests across parser, IR, Z3 encoding, equivalence checking, the
 optimizer/mock generator, the benchmark suite (cross-checked live
 against Z3), and the FastAPI routes.
 
@@ -144,9 +146,10 @@ reduction) to `experiments/results/`.
 
 ## 15. Limitations
 
-- **Restricted language**: mathematical integers only — no fixed-width
-  overflow, no pointers, arrays, structs, I/O, function calls, loops, or
-  floating point. See `docs/ir.md` for why.
+- **Restricted mini-C**: real syntax (typed declarations, block
+  `if`/`else`) but mathematical integers only — no fixed-width overflow,
+  no pointers, arrays, structs, I/O, function calls, loops, or floating
+  point. See `docs/ir.md` for why.
 - **No alpha-equivalence**: a candidate that renames a parameter is
   reported as a signature mismatch, not proven equivalent.
 - **Division by zero is underspecified** (Z3's SMT-LIB convention, not a
@@ -162,7 +165,8 @@ reduction) to `experiments/results/`.
 Documented, deliberately **not** implemented in this MVP (see the code
 comments and `docs/` files for why each is hard):
 
-LLVM IR integration · a real C frontend · 32-bit bit-vector semantics ·
+LLVM IR integration · a fuller C frontend (structs, arrays, real
+fixed-width ints, function calls) · 32-bit bit-vector semantics ·
 loop handling (needs invariants/induction, not just straight-line
 encoding) · memory modeling (aliasing) · floating point (Z3's FP theory
 is a different beast) · Alive2 integration · standard compiler benchmark
@@ -183,14 +187,14 @@ curl http://localhost:8000/api/health
 ```bash
 curl -X POST http://localhost:8000/api/optimize \
   -H "Content-Type: application/json" \
-  -d '{"program": "fn f(x) { t1 = x + 0; t2 = t1 * 1; t3 = t2 + t2; return t3; }", "num_candidates": 4, "llm_backend": "mock"}'
+  -d '{"program": "int f(int x) { int t1 = x + 0; int t2 = t1 * 1; int t3 = t2 + t2; return t3; }", "num_candidates": 4, "llm_backend": "mock"}'
 ```
 
 **Verify a specific pair (accepted example):**
 ```bash
 curl -X POST http://localhost:8000/api/verify \
   -H "Content-Type: application/json" \
-  -d '{"original_program": "fn f(x) { return x + 0; }", "optimized_program": "fn f(x) { return x; }"}'
+  -d '{"original_program": "int f(int x) { return x + 0; }", "optimized_program": "int f(int x) { return x; }"}'
 # -> {"verification": {"status": "EQUIVALENT", "z3_result": "unsat", "counterexample": null, ...}}
 ```
 
@@ -198,9 +202,17 @@ curl -X POST http://localhost:8000/api/verify \
 ```bash
 curl -X POST http://localhost:8000/api/verify \
   -H "Content-Type: application/json" \
-  -d '{"original_program": "fn f(x) { return x * x; }", "optimized_program": "fn f(x) { return 2 * x; }"}'
+  -d '{"original_program": "int f(int x) { return x * x; }", "optimized_program": "int f(int x) { return 2 * x; }"}'
 # -> {"verification": {"status": "NOT_EQUIVALENT", "z3_result": "sat",
 #      "counterexample": {"inputs": {"x": -8}, "original_output": 64, "optimized_output": -16}, ...}}
+```
+
+**Verify block if/else vs. a ternary (real mini-C, both provably equal):**
+```bash
+curl -X POST http://localhost:8000/api/verify \
+  -H "Content-Type: application/json" \
+  -d '{"original_program": "int abs_val(int x) { if (x < 0) { return 0 - x; } return x; }", "optimized_program": "int abs_val(int x) { return x < 0 ? 0 - x : x; }"}'
+# -> {"verification": {"status": "EQUIVALENT", "z3_result": "unsat", "counterexample": null, ...}}
 ```
 
 ## Most important files

@@ -1,40 +1,92 @@
 # IR Design
 
-## Source language
+## Source language: mini-C
 
-A tiny, brace-delimited expression language over mathematical integers:
+A tiny, real subset of C syntax over mathematical integers: typed
+declarations, brace-delimited blocks, and genuine block-structured
+`if`/`else` (including early returns and `else if` chains) -- restricted
+to what stays formally verifiable (see "Why this restriction?" below).
 
-```
-fn compute(x, y) {
-    a = x * 2;
-    b = y + 0;
-    c = a + a;
+```c
+int compute(int x, int y) {
+    int a = x * 2;
+    int b = y + 0;
+    int c = a + a;
     return c + b;
+}
+```
+
+```c
+int abs_val(int x) {
+    if (x < 0) {
+        return 0 - x;
+    }
+    return x;
 }
 ```
 
 Grammar (`backend/app/compiler/ast.py`):
 
 ```
-program    := function+
-function   := "fn" IDENT "(" params? ")" "{" stmt* "}"
-stmt       := assign_stmt | return_stmt
-assign_stmt:= IDENT "=" expr ";"
-return_stmt:= "return" expr ";"
-expr       := ternary
-ternary    := comparison ("?" expr ":" expr)?
-comparison := additive (("==" | "!=" | "<" | "<=" | ">" | ">=") additive)?
-additive   := term (("+" | "-") term)*
-term       := unary (("*" | "/" | "%") unary)*
-unary      := "-" unary | primary
-primary    := NUMBER | IDENT | "(" expr ")"
+program     := function+
+function    := "int" IDENT "(" params? ")" "{" stmt* "}"
+params      := "int" IDENT ("," "int" IDENT)*
+stmt        := decl_stmt | assign_stmt | if_stmt | return_stmt
+decl_stmt   := "int" IDENT "=" expr ";"
+assign_stmt := IDENT "=" expr ";"
+if_stmt     := "if" "(" expr ")" block ("else" (block | if_stmt))?
+block       := "{" stmt* "}"
+return_stmt := "return" expr ";"
+expr        := ternary
+ternary     := comparison ("?" expr ":" expr)?
+comparison  := additive (("==" | "!=" | "<" | "<=" | ">" | ">=") additive)?
+additive    := term (("+" | "-") term)*
+term        := unary (("*" | "/" | "%") unary)*
+unary       := "-" unary | primary
+primary     := NUMBER | IDENT | "(" expr ")"
 ```
 
-The only branching construct is the ternary `cond ? a : b`, which lowers
-directly to the `SELECT` IR instruction -- there is no statement-level
-`if`/`else`, no loops, no blocks-within-blocks. That keeps every program's
-control-flow graph trivial (a straight line) so the whole function can be
-encoded as a single Z3 expression with no path explosion.
+`int` is the only type (mathematical, unbounded -- not a real 32/64-bit
+`int`). A variable must be declared (`int name = ...;`) before it can be
+reassigned (`name = ...;`); the lowering pass rejects both redeclaration
+and assignment to an undeclared name. There are no loops, pointers,
+arrays, or structs -- see "Why this restriction?" below.
+
+### Lowering block if/else: tail duplication
+
+The IR itself has no branches, only a flat instruction list plus
+`SELECT` (a ternary). Statement-level `if`/`else` is lowered by **tail
+duplication**: everything that comes *after* an `if`/`else` in the same
+block is appended onto *both* branches before recursing, and the two
+branches' final return values are combined with one `SELECT` keyed on
+the condition. Since the IR has no side effects, computing both branches
+unconditionally is semantics-preserving -- it's exactly how the ternary
+already worked, generalized from expressions to whole blocks. A branch
+that already returns on every path (e.g. an early `return` inside an
+`if` with no `else`) is *not* given the tail -- that would make it dead
+code -- so:
+
+```c
+int abs_val(int x) {
+    if (x < 0) { return 0 - x; }
+    return x;
+}
+```
+
+lowers to exactly:
+
+```
+CMP    t1 = lt x, 0
+SUB    t2 = 0 - x
+SELECT t3 = t1 ? t2 : x
+RETURN t3
+```
+
+The cost of tail duplication is that instruction count can grow with
+`if` nesting depth (each nested if-with-fallthrough duplicates
+everything after it into both arms) -- acceptable for small, loop-free
+mini-C programs; see `backend/app/compiler/lowering.py` for the full
+algorithm and `docs/learning_roadmap.md` for a walkthrough.
 
 ## IR instruction set
 

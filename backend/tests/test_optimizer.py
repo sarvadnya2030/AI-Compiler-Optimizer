@@ -10,7 +10,7 @@ from app.verifier.equivalence import VerificationStatus
 
 def test_mock_generator_is_deterministic():
     gen = MockOptimizationGenerator()
-    fn = lower_source("fn f(x) { t1 = x + 0; return t1; }")
+    fn = lower_source("int f(int x) { int t1 = x + 0; return t1; }")
     a = gen.generate_candidates(fn, 3)
     b = gen.generate_candidates(fn, 3)
     assert a == b
@@ -18,15 +18,15 @@ def test_mock_generator_is_deterministic():
 
 def test_mock_generator_respects_num_candidates():
     gen = MockOptimizationGenerator()
-    fn = lower_source("fn f(x) { return x + 0; }")
+    fn = lower_source("int f(int x) { return x + 0; }")
     candidates = gen.generate_candidates(fn, 5)
     assert len(candidates) == 5
 
 
 def test_mock_generator_produces_both_valid_and_invalid_candidates():
     gen = MockOptimizationGenerator()
-    fn = lower_source("fn f(x) { t1 = x + 0; t2 = t1 * 1; return t2 + t2; }")
-    report = run_optimization("fn f(x) { t1 = x + 0; t2 = t1 * 1; return t2 + t2; }", gen, 4)
+    fn = lower_source("int f(int x) { int t1 = x + 0; int t2 = t1 * 1; return t2 + t2; }")
+    report = run_optimization("int f(int x) { int t1 = x + 0; int t2 = t1 * 1; return t2 + t2; }", gen, 4)
     statuses = [c.decision.verification.status for c in report.candidates if c.decision]
     assert VerificationStatus.EQUIVALENT in statuses
     assert VerificationStatus.NOT_EQUIVALENT in statuses
@@ -39,7 +39,7 @@ def test_candidate_parser_rejects_malformed_json():
 
 
 def test_candidate_parser_strips_code_fences():
-    fn = lower_source("fn f(x) { return x; }")
+    fn = lower_source("int f(int x) { return x; }")
     from app.compiler import ir as IR
 
     fenced = "```json\n" + json.dumps(IR.to_dict(fn)) + "\n```"
@@ -55,7 +55,7 @@ def test_candidate_parser_rejects_unsupported_op():
 
 
 def test_simplify_folds_constants_and_identities():
-    fn = lower_source("fn f(x) { a = x + 0; b = a * 1; c = 2 + 3; return b + c; }")
+    fn = lower_source("int f(int x) { int a = x + 0; int b = a * 1; int c = 2 + 3; return b + c; }")
     simplified = simplify(fn)
     assert len(simplified.instructions) < len(fn.instructions)
 
@@ -63,7 +63,7 @@ def test_simplify_folds_constants_and_identities():
 def test_simplify_preserves_semantics():
     from app.verifier.equivalence import EquivalenceChecker
 
-    fn = lower_source("fn f(x) { a = x + 0; b = a * 1; c = b + b; return c; }")
+    fn = lower_source("int f(int x) { int a = x + 0; int b = a * 1; int c = b + b; return c; }")
     simplified = simplify(fn)
     checker = EquivalenceChecker()
     result = checker.verify(fn, simplified)
@@ -72,7 +72,7 @@ def test_simplify_preserves_semantics():
 
 def test_pipeline_end_to_end_with_mock_generator():
     report = run_optimization(
-        "fn f(x) { t1 = x + 0; t2 = t1 * 1; t3 = t2 + t2; return t3; }",
+        "int f(int x) { int t1 = x + 0; int t2 = t1 * 1; int t3 = t2 + t2; return t3; }",
         MockOptimizationGenerator(),
         3,
     )

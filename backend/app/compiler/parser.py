@@ -32,6 +32,9 @@ class Parser:
     def _peek(self) -> Token:
         return self.tokens[self.pos]
 
+    def _peek_next(self) -> Token:
+        return self.tokens[min(self.pos + 1, len(self.tokens) - 1)]
+
     def _advance(self) -> Token:
         tok = self.tokens[self.pos]
         if tok.type != TokenType.EOF:
@@ -56,24 +59,41 @@ class Parser:
         return A.Program(functions=functions)
 
     def _parse_function(self) -> A.Function:
-        self._expect(TokenType.FN)
+        self._expect(TokenType.INT)  # return type -- only `int` is supported
         name_tok = self._expect(TokenType.IDENT)
         self._expect(TokenType.LPAREN)
         params: list[str] = []
         if not self._check(TokenType.RPAREN):
+            self._expect(TokenType.INT)
             params.append(self._expect(TokenType.IDENT).value)
             while self._check(TokenType.COMMA):
                 self._advance()
+                self._expect(TokenType.INT)
                 params.append(self._expect(TokenType.IDENT).value)
         self._expect(TokenType.RPAREN)
-        self._expect(TokenType.LBRACE)
-        body: list[A.Stmt] = []
-        while not self._check(TokenType.RBRACE):
-            body.append(self._parse_stmt())
-        self._expect(TokenType.RBRACE)
-        if not body or not isinstance(body[-1], A.Return):
-            raise ParseError("function body must end with a return statement", self._peek())
+        body = self._parse_block()
+        if not body or not self._is_terminal(body[-1]):
+            raise ParseError("every control path must end with a return statement", self._peek())
         return A.Function(name=name_tok.value, params=params, body=body)
+
+    def _parse_block(self) -> list[A.Stmt]:
+        self._expect(TokenType.LBRACE)
+        stmts: list[A.Stmt] = []
+        while not self._check(TokenType.RBRACE):
+            stmts.append(self._parse_stmt())
+        self._expect(TokenType.RBRACE)
+        return stmts
+
+    @staticmethod
+    def _is_terminal(stmt: A.Stmt) -> bool:
+        """A statement that guarantees its control path returns."""
+        if isinstance(stmt, A.Return):
+            return True
+        if isinstance(stmt, A.If):
+            return stmt.else_body is not None and bool(stmt.then_body) and bool(stmt.else_body) and Parser._is_terminal(
+                stmt.then_body[-1]
+            ) and Parser._is_terminal(stmt.else_body[-1])
+        return False
 
     def _parse_stmt(self) -> A.Stmt:
         if self._check(TokenType.RETURN):
@@ -82,11 +102,39 @@ class Parser:
             self._expect(TokenType.SEMI)
             return A.Return(value=value)
 
+        if self._check(TokenType.INT):
+            self._advance()
+            name_tok = self._expect(TokenType.IDENT)
+            self._expect(TokenType.ASSIGN)
+            value = self._parse_expr()
+            self._expect(TokenType.SEMI)
+            return A.VarDecl(name=name_tok.value, value=value)
+
+        if self._check(TokenType.IF):
+            return self._parse_if()
+
         name_tok = self._expect(TokenType.IDENT)
         self._expect(TokenType.ASSIGN)
         value = self._parse_expr()
         self._expect(TokenType.SEMI)
-        return A.Assignment(name=name_tok.value, value=value)
+        return A.Assign(name=name_tok.value, value=value)
+
+    def _parse_if(self) -> A.If:
+        self._expect(TokenType.IF)
+        self._expect(TokenType.LPAREN)
+        cond = self._parse_expr()
+        self._expect(TokenType.RPAREN)
+        then_body = self._parse_block()
+
+        else_body = None
+        if self._check(TokenType.ELSE):
+            self._advance()
+            if self._check(TokenType.IF):
+                else_body = [self._parse_if()]
+            else:
+                else_body = self._parse_block()
+
+        return A.If(cond=cond, then_body=then_body, else_body=else_body)
 
     def _parse_expr(self) -> A.Expr:
         return self._parse_ternary()

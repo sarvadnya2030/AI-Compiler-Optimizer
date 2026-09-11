@@ -61,6 +61,13 @@ is the single source of truth for "is this a legal IR program" — it's
 run on IR compiled from source *and* on every candidate an LLM produces,
 so there's exactly one place that decides IR legality.
 
+The source language (mini-C) has real block `if`/`else`, but the IR
+still has no branches at all — only `SelectInstr`. The frontend's
+`lowering.py` bridges that gap with **tail duplication**: everything
+after an `if`/`else` gets appended onto both branches before lowering
+continues, so an early return collapses into one `SELECT` just like a
+ternary would. Worked example in `docs/ir.md`.
+
 See `docs/ir.md` for the full instruction table and grammar.
 
 ---

@@ -3,10 +3,10 @@ import ConfigPanel from "../components/ConfigPanel";
 import CandidateCard from "../components/CandidateCard";
 import { getHealth, postOptimize } from "../api/client";
 
-const DEFAULT_PROGRAM = `fn compute(x, y) {
-    t1 = x + 0;
-    t2 = t1 * 1;
-    t3 = t2 + t2;
+const DEFAULT_PROGRAM = `int compute(int x, int y) {
+    int t1 = x + 0;
+    int t2 = t1 * 1;
+    int t3 = t2 + t2;
     return t3 + y;
 }`;
 

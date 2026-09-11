@@ -15,28 +15,28 @@ def _prove_identity(source_a: str, source_b: str) -> bool:
 
 
 def test_x_plus_zero_equals_x():
-    assert _prove_identity("fn f(x) { return x + 0; }", "fn f(x) { return x; }")
+    assert _prove_identity("int f(int x) { return x + 0; }", "int f(int x) { return x; }")
 
 
 def test_x_times_one_equals_x():
-    assert _prove_identity("fn f(x) { return x * 1; }", "fn f(x) { return x; }")
+    assert _prove_identity("int f(int x) { return x * 1; }", "int f(int x) { return x; }")
 
 
 def test_x_plus_x_equals_two_x():
-    assert _prove_identity("fn f(x) { return x + x; }", "fn f(x) { return 2 * x; }")
+    assert _prove_identity("int f(int x) { return x + x; }", "int f(int x) { return 2 * x; }")
 
 
 def test_x_times_x_not_equal_two_x():
-    assert not _prove_identity("fn f(x) { return x * x; }", "fn f(x) { return 2 * x; }")
+    assert not _prove_identity("int f(int x) { return x * x; }", "int f(int x) { return 2 * x; }")
 
 
 def test_x_plus_one_not_equal_x():
-    assert not _prove_identity("fn f(x) { return x + 1; }", "fn f(x) { return x; }")
+    assert not _prove_identity("int f(int x) { return x + 1; }", "int f(int x) { return x; }")
 
 
 def test_encoder_handles_select():
     enc = Z3Encoder()
-    result = enc.encode(lower_source("fn f(x, y) { return x > y ? x : y; }"))
+    result = enc.encode(lower_source("int f(int x, int y) { return x > y ? x : y; }"))
     solver = z3.Solver()
     x, y = result.params["x"], result.params["y"]
     solver.add(x == 3, y == 7)

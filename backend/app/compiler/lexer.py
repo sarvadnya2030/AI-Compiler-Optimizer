@@ -1,11 +1,13 @@
-"""Lexer for the small IR source language.
+"""Lexer for the mini-C source language.
 
-Turns source text into a flat list of Tokens. The language is
-brace-delimited (not indentation-sensitive) to keep the parser simple:
+Turns source text into a flat list of Tokens. This is real (if tiny) C
+syntax -- typed declarations, brace-delimited blocks, block if/else --
+restricted to what stays formally verifiable (see docs/ir.md): no
+loops, pointers, arrays, structs, or other types besides `int`.
 
-    fn compute(x, y) {
-        a = x * 2;
-        b = y + 0;
+    int compute(int x, int y) {
+        int a = x * 2;
+        int b = y + 0;
         return a + b;
     }
 """
@@ -18,7 +20,9 @@ from enum import Enum, auto
 class TokenType(Enum):
     NUMBER = auto()
     IDENT = auto()
-    FN = auto()
+    INT = auto()
+    IF = auto()
+    ELSE = auto()
     RETURN = auto()
     PLUS = auto()
     MINUS = auto()
@@ -43,7 +47,12 @@ class TokenType(Enum):
     EOF = auto()
 
 
-KEYWORDS = {"fn": TokenType.FN, "return": TokenType.RETURN}
+KEYWORDS = {
+    "int": TokenType.INT,
+    "if": TokenType.IF,
+    "else": TokenType.ELSE,
+    "return": TokenType.RETURN,
+}
 
 
 @dataclass(frozen=True)

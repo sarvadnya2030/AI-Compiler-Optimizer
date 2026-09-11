@@ -13,7 +13,7 @@ def test_health():
 
 def test_optimize_endpoint_mock():
     payload = {
-        "program": "fn f(x) { t1 = x + 0; return t1; }",
+        "program": "int f(int x) { int t1 = x + 0; return t1; }",
         "num_candidates": 3,
         "llm_backend": "mock",
     }
@@ -33,8 +33,8 @@ def test_optimize_endpoint_rejects_bad_source():
 
 def test_verify_endpoint_equivalent():
     payload = {
-        "original_program": "fn f(x) { return x * x; }",
-        "optimized_program": "fn f(x) { return x * x; }",
+        "original_program": "int f(int x) { return x * x; }",
+        "optimized_program": "int f(int x) { return x * x; }",
     }
     r = client.post("/api/verify", json=payload)
     assert r.status_code == 200
@@ -43,8 +43,8 @@ def test_verify_endpoint_equivalent():
 
 def test_verify_endpoint_not_equivalent_has_counterexample():
     payload = {
-        "original_program": "fn f(x) { return x * x; }",
-        "optimized_program": "fn f(x) { return x + x; }",
+        "original_program": "int f(int x) { return x * x; }",
+        "optimized_program": "int f(int x) { return x + x; }",
     }
     r = client.post("/api/verify", json=payload)
     assert r.status_code == 200
