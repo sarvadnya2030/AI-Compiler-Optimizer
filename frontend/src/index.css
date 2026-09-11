@@ -13,6 +13,12 @@
   --red-bg: #fdecea;
   --code-bg: #0d1117;
   --code-text: #e6edf3;
+  --code-titlebar: #161b22;
+  --code-border: #21262d;
+  --code-gutter-bg: #0a0d12;
+  --code-muted: #545d68;
+  --code-kw: #ff7b72;
+  --code-num: #79c0ff;
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
 }
@@ -32,6 +38,12 @@
   --red-bg: rgba(255, 107, 100, 0.12);
   --code-bg: #0a0c10;
   --code-text: #dbe4ee;
+  --code-titlebar: #14171d;
+  --code-border: #22262e;
+  --code-gutter-bg: #07090c;
+  --code-muted: #4b525c;
+  --code-kw: #ff8a80;
+  --code-num: #82c4ff;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
@@ -170,17 +182,215 @@ body {
   margin-bottom: 12px;
 }
 
-.code-editor {
-  width: 100%;
+/* ---- terminal-style code editor ---- */
+
+.editor-frame {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--code-bg);
+}
+
+.editor-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--code-titlebar);
+  border-bottom: 1px solid var(--code-border);
+}
+
+.editor-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-red {
+  background: #ff5f56;
+}
+
+.dot-yellow {
+  background: #ffbd2e;
+}
+
+.dot-green {
+  background: #27c93f;
+}
+
+.editor-filename {
+  margin-left: 8px;
+  font-family: "SF Mono", "Fira Code", Consolas, monospace;
+  font-size: 0.78rem;
+  color: var(--code-muted);
+}
+
+.editor-body {
+  display: flex;
+  position: relative;
+  height: calc(var(--rows) * 1.5em + 24px);
+}
+
+.editor-gutter {
+  margin: 0;
+  padding: 12px 10px 12px 14px;
+  text-align: right;
   font-family: "SF Mono", "Fira Code", Consolas, monospace;
   font-size: 0.9rem;
   line-height: 1.5;
+  color: var(--code-muted);
+  background: var(--code-gutter-bg);
+  border-right: 1px solid var(--code-border);
+  user-select: none;
+}
+
+.editor-code-area {
+  position: relative;
+  flex: 1;
+  overflow: auto;
+}
+
+.editor-highlight,
+.editor-input {
+  margin: 0;
   padding: 12px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--code-bg);
+  font-family: "SF Mono", "Fira Code", Consolas, monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+.editor-highlight {
+  position: absolute;
+  top: 0;
+  left: 0;
   color: var(--code-text);
-  resize: vertical;
+  pointer-events: none;
+}
+
+.editor-input {
+  position: relative;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--code-text);
+  border: none;
+  resize: none;
+  outline: none;
+}
+
+.editor-input::selection {
+  background: rgba(111, 140, 255, 0.35);
+}
+
+.tok-kw {
+  color: var(--code-kw);
+  font-weight: 600;
+}
+
+.tok-num {
+  color: var(--code-num);
+}
+
+.tok-ident {
+  color: var(--code-text);
+}
+
+.brand-mono {
+  font-family: "SF Mono", "Fira Code", Consolas, monospace;
+  color: var(--accent);
+}
+
+/* ---- pipeline diagram ---- */
+
+.pipeline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 20px;
+  font-family: "SF Mono", "Fira Code", Consolas, monospace;
+}
+
+.pipeline-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pipeline-chip {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  transition: all 0.2s ease;
+}
+
+.pipeline-chip-done {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green-bg);
+}
+
+.pipeline-chip-active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--panel);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.pipeline-arrow {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+/* ---- build log ---- */
+
+.build-log {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 8px;
+  font-family: "SF Mono", "Fira Code", Consolas, monospace;
+  font-size: 0.78rem;
+  color: var(--code-num);
+  min-height: 20px;
+}
+
+.build-log-line {
+  animation: fade-in 0.2s ease;
+}
+
+.build-log-cursor {
+  display: inline-block;
+  animation: blink 0.8s steps(1) infinite;
+  color: var(--code-text);
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
 }
 
 .config-panel {

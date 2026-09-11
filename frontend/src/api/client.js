@@ -1,4 +1,6 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+// "" (relative, via the Vite dev-server proxy) is a valid, intentional value --
+// only fall back to the default when the var is genuinely unset.
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
 async function request(path, options = {}) {
   const res = await fetch(`${BASE_URL}${path}`, {

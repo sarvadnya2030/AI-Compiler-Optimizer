@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
+import CodeEditor from "../components/CodeEditor";
 import ConfigPanel from "../components/ConfigPanel";
 import CandidateCard from "../components/CandidateCard";
 import ThemeToggle from "../components/ThemeToggle";
+import PipelineDiagram from "../components/PipelineDiagram";
+import BuildLog from "../components/BuildLog";
 import { getHealth, postOptimize } from "../api/client";
 
 const EXAMPLES = {
@@ -49,6 +52,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [health, setHealth] = useState(null);
   const [healthError, setHealthError] = useState(false);
+  const [activeStage, setActiveStage] = useState("source");
 
   useEffect(() => {
     getHealth()
@@ -61,6 +65,7 @@ export default function Dashboard() {
     setProgram(EXAMPLES[name]);
     setReport(null);
     setError(null);
+    setActiveStage("source");
   }
 
   async function handleGenerate() {
@@ -75,8 +80,10 @@ export default function Dashboard() {
         ollamaModel: config.ollamaModel,
       });
       setReport(data);
+      setActiveStage("verdict");
     } catch (e) {
       setError(e.message);
+      setActiveStage("source");
     } finally {
       setLoading(false);
     }
@@ -87,7 +94,9 @@ export default function Dashboard() {
       <header className="app-header">
         <div className="app-header-top">
           <div>
-            <h1>AI Compiler Optimizer</h1>
+            <h1>
+              <span className="brand-mono">mini-C</span> Compiler Optimizer
+            </h1>
             <p className="subtitle">LLM-Generated Optimizations with Formal Equivalence Verification</p>
           </div>
           <ThemeToggle />
@@ -106,10 +115,12 @@ export default function Dashboard() {
         </div>
       </header>
 
+      <PipelineDiagram activeStage={loading ? activeStage : null} doneStage={report ? "verdict" : null} />
+
       <div className="main-grid">
         <section className="panel editor-panel">
           <div className="panel-title-row">
-            <div className="panel-title">Original Program</div>
+            <div className="panel-title">Source</div>
             <select
               className="example-picker"
               value={exampleName}
@@ -122,20 +133,19 @@ export default function Dashboard() {
               ))}
             </select>
           </div>
-          <textarea
-            className="code-editor"
+          <CodeEditor
             value={program}
-            onChange={(e) => {
-              setProgram(e.target.value);
+            onChange={(v) => {
+              setProgram(v);
               setExampleName("");
             }}
-            spellCheck={false}
             rows={12}
           />
+          <BuildLog running={loading} onStageChange={setActiveStage} />
         </section>
 
         <section className="panel config-panel-wrapper">
-          <div className="panel-title">Configuration</div>
+          <div className="panel-title">Compiler flags</div>
           <ConfigPanel config={config} onChange={setConfig} onGenerate={handleGenerate} loading={loading} />
         </section>
       </div>
@@ -149,7 +159,7 @@ export default function Dashboard() {
       {report && (
         <section className="panel results-panel">
           <div className="results-header">
-            <div className="panel-title">Results</div>
+            <div className="panel-title">Verification results</div>
             <div className={`results-badge ${report.summary.accepted > 0 ? "results-badge-ok" : "results-badge-none"}`}>
               {report.summary.accepted}/{report.summary.total_candidates} accepted ({report.summary.acceptance_rate_pct}%)
             </div>
